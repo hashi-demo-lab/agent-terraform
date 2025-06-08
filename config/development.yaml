@@ -1,0 +1,99 @@
+# config/development.yaml
+# Development environment configuration for Terraform Code Generation Agent
+
+terraform:
+  version: "1.12"
+  backend: "local"
+  
+validation:
+  max_iterations: 5
+  fail_fast: false
+  timeout: 300  # seconds
+  
+tools:
+  tflint:
+    enabled: true
+    config_path: ".tflint.hcl"
+    enabled_rules: ["all"]
+    disabled_rules: []
+    timeout: 120
+  
+  trivy:
+    enabled: true
+    severity: ["HIGH", "CRITICAL"]
+    scan_type: ["config", "secret"]
+    timeout: 180
+  
+  terraform:
+    enabled: true
+    commands: ["validate", "fmt", "plan"]
+    timeout: 300
+
+langgraph_platform:
+  checkpointer: "memory"
+  persistence: true
+  thread_management: true
+  state_schema: "TerraformState"
+  max_concurrent_workflows: 5
+  workflow_timeout: 1800  # 30 minutes
+
+logging:
+  level: "DEBUG"
+  format: "json"
+  file: "logs/terraform-agent-dev.log"
+
+providers:
+  aws:
+    default_region: "us-west-2"
+    supported_regions: ["us-west-2", "us-east-1", "eu-west-1"]
+  
+  azurerm:
+    default_location: "West US 2"
+    supported_locations: ["West US 2", "East US", "West Europe"]
+  
+  google:
+    default_region: "us-central1"
+    supported_regions: ["us-central1", "us-east1", "europe-west1"]
+
+security:
+  enable_encryption: true
+  require_tags: true
+  block_public_access: true
+  
+compliance:
+  default_requirements: ["security"]
+  available_frameworks: 
+    - "security"
+    - "reliability" 
+    - "cost_optimization"
+    - "performance"
+    - "operational_excellence"
+    - "sustainability"
+
+mcp:
+  terraform_registry:
+    enabled: true
+    base_url: "https://registry.terraform.io"
+    timeout: 30
+  
+  provider_docs:
+    cache_enabled: true
+    cache_ttl: 3600  # 1 hour
+
+performance:
+  enable_metrics: true
+  metrics_port: 8000
+  enable_tracing: false
+  
+database:
+  # For development, use in-memory storage
+  type: "memory"
+  
+api:
+  host: "localhost"
+  port: 8080
+  enable_cors: true
+  
+templates:
+  base_path: "src/templates"
+  cache_enabled: true 

@@ -1,0 +1,60 @@
+# Terraform Code Generation Agent Dependencies
+langgraph>=0.4.8
+langgraph-sdk>=0.1.0  # SDK for LangGraph API interaction
+langgraph-cli>=0.2.0  # CLI tools for LangGraph Platform
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+
+# LangMem for context management
+langmem>=0.0.27
+
+# MCP Integration
+mcp-client>=0.1.0
+
+# Terraform and HCL parsing
+python-hcl2>=4.3.0
+python-terraform>=0.10.1
+
+# Validation tools integration
+subprocess32>=3.5.4
+
+# Data processing and utilities
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+PyYAML>=6.0
+click>=8.1.0
+rich>=13.0.0
+structlog>=23.0.0
+
+# HTTP and async support
+httpx>=0.25.0
+aiohttp>=3.9.0
+asyncio-mqtt>=0.13.0
+
+# Testing and development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0
+black>=23.0.0
+isort>=5.12.0
+mypy>=1.5.0
+pre-commit>=3.4.0
+
+# Performance and monitoring
+prometheus-client>=0.17.0
+psutil>=5.9.0
+
+# Database support for checkpointing
+psycopg2-binary>=2.9.0
+redis>=4.6.0
+
+# Documentation generation
+terraform-docs>=0.16.0
+mkdocs>=1.5.0
+mkdocs-material>=9.2.0
+
+# Security scanning
+bandit>=1.7.5
+safety>=2.3.0 
