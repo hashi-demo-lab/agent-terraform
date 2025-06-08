@@ -9,32 +9,34 @@ Follow this exact structure for all Terraform agent development:
 terraform-agent/
 ├── src/
 │   ├── agents/
-│   │   ├── planner.py          # Requirements analysis and resource planning
-│   │   ├── generator.py        # Code generation and templating
-│   │   ├── validator.py        # Multi-tool validation orchestration
-│   │   ├── refiner.py          # Code improvement and optimization
-│   │   ├── documenter.py       # Documentation generation
-│   │   └── reviewer.py         # Final quality assurance
+│   │   ├── planner.py          # Requirements analysis and resource planning (LangGraph node)
+│   │   ├── generator.py        # Code generation and templating (LangGraph node)
+│   │   ├── validator.py        # Multi-tool validation orchestration (LangGraph node)
+│   │   ├── refiner.py          # Code improvement and optimization (LangGraph node)
+│   │   ├── documenter.py       # Documentation generation (LangGraph node)
+│   │   └── reviewer.py         # Final quality assurance (LangGraph node)
 │   ├── workflows/
-│   │   ├── terraform_workflow.py  # Main LangGraph workflow
-│   │   └── validation_pipeline.py # Validation orchestration
+│   │   ├── terraform_workflow.py  # Main LangGraph Platform workflow
+│   │   ├── state_management.py    # LangGraph state definitions and management
+│   │   └── workflow_manager.py    # LangGraph Platform workflow execution
 │   ├── tools/
-│   │   ├── terraform_tools.py     # Terraform CLI wrappers
-│   │   ├── tflint_tools.py        # TFLint integration
-│   │   ├── trivy_tools.py         # Trivy security scanning
-│   │   └── checkov_tools.py       # Checkov compliance validation
+│   │   ├── terraform_tools.py     # Terraform CLI wrappers (LangGraph ToolNode)
+│   │   ├── tflint_tools.py        # TFLint integration (AVM ruleset, LangGraph ToolNode)
+│   │   └── trivy_tools.py         # Trivy security scanning (LangGraph ToolNode)
 │   ├── templates/
 │   │   ├── aws/                   # AWS-specific templates
 │   │   ├── azure/                 # Azure-specific templates
 │   │   ├── gcp/                   # GCP-specific templates
 │   │   └── base/                  # Base module templates
-│   ├── memory/
-│   │   ├── langmem_config.py      # LangMem configuration
-│   │   └── context_manager.py     # Context persistence
+│   ├── platform/
+│   │   ├── langgraph_config.py    # LangGraph Platform configuration
+│   │   ├── checkpointers.py       # State persistence and checkpointing
+│   │   └── deployment.py          # LangGraph Platform deployment configuration
 │   ├── config/
 │   │   ├── validation_rules.yaml  # Validation tool configurations
 │   │   ├── best_practices.yaml    # Best practice enforcement
-│   │   └── cloud_configs.yaml     # Cloud provider settings
+│   │   ├── cloud_configs.yaml     # Cloud provider settings
+│   │   └── langgraph.yaml         # LangGraph Platform configuration
 │   └── utils/
 │       ├── terraform_parser.py    # HCL parsing utilities
 │       ├── file_manager.py        # File system operations
@@ -64,53 +66,120 @@ terraform-agent/
 
 ### Python Development Rules
 
-1. **Agent Implementation**:
+**MANDATORY**: All development MUST use LangGraph Platform for workflow orchestration, state management, and agent coordination.
+
+1. **LangGraph Platform Integration**:
    ```python
-   # Each agent must inherit from BaseAgent
-   from langgraph import BaseAgent
-   from langmem import MemoryManager
+   # MANDATORY: Use LangGraph Platform for all workflow management
+   from langgraph import StateGraph, START, END, MessagesState
+   from langgraph.platform import LangGraphPlatform
+   from langgraph.checkpoint.memory import MemorySaver
+   from langgraph.prebuilt import ToolNode
    
-   class PlannerAgent(BaseAgent):
-       def __init__(self, memory_manager: MemoryManager):
-           super().__init__()
-           self.memory = memory_manager
-           self.max_iterations = 5
+   # Initialize LangGraph Platform
+   platform = LangGraphPlatform()
+   checkpointer = MemorySaver()
    ```
 
-2. **Workflow Definition**:
+2. **Agent Implementation with LangGraph Platform**:
    ```python
-   # Use LangGraph for workflow orchestration
-   from langgraph import StateGraph, START, END
+   # Each agent must be implemented as LangGraph nodes
+   from langgraph import StateGraph
+   from typing import TypedDict, Annotated
+   from langchain_core.messages import BaseMessage
    
-   def create_terraform_workflow():
-       workflow = StateGraph()
-       workflow.add_node("planner", PlannerAgent)
-       workflow.add_node("generator", GeneratorAgent)
-       # ... additional nodes
-       return workflow
-   ```
-
-3. **Memory Management**:
-   ```python
-   # Implement persistent context with LangMem
-   from langmem import MemoryManager, Context
-   
-   class TerraformContext(Context):
+   class TerraformState(TypedDict):
+       messages: Annotated[list[BaseMessage], "The messages in the conversation"]
        requirements: dict
        generated_code: str
        validation_results: list
-       iteration_count: int = 0
+       iteration_count: int
+       current_agent: str
+   
+   class PlannerAgent:
+       def __init__(self, platform: LangGraphPlatform):
+           self.platform = platform
+           self.max_iterations = 5
+       
+       def __call__(self, state: TerraformState) -> TerraformState:
+           # Agent logic here
+           return state
+   ```
+
+3. **Workflow Definition with LangGraph Platform**:
+   ```python
+   # MANDATORY: Use LangGraph Platform for workflow orchestration
+   def create_terraform_workflow() -> StateGraph:
+       workflow = StateGraph(TerraformState)
+       
+       # Add agent nodes
+       workflow.add_node("planner", PlannerAgent(platform))
+       workflow.add_node("generator", GeneratorAgent(platform))
+       workflow.add_node("validator", ValidatorAgent(platform))
+       workflow.add_node("refiner", RefinerAgent(platform))
+       workflow.add_node("documenter", DocumenterAgent(platform))
+       workflow.add_node("reviewer", ReviewerAgent(platform))
+       
+       # Add tool nodes for validation
+       workflow.add_node("terraform_tools", ToolNode([terraform_validate, terraform_fmt]))
+       workflow.add_node("tflint_tools", ToolNode([tflint_avm_validate]))
+       workflow.add_node("trivy_tools", ToolNode([trivy_scan]))
+       
+       # Define workflow edges
+       workflow.add_edge(START, "planner")
+       workflow.add_edge("planner", "generator")
+       workflow.add_edge("generator", "validator")
+       workflow.add_conditional_edges(
+           "validator",
+           should_continue_validation,
+           {
+               "continue": "refiner",
+               "complete": "documenter"
+           }
+       )
+       workflow.add_edge("refiner", "generator")
+       workflow.add_edge("documenter", "reviewer")
+       workflow.add_edge("reviewer", END)
+       
+       return workflow.compile(checkpointer=checkpointer)
+   ```
+
+4. **State Management with LangGraph Platform**:
+   ```python
+   # MANDATORY: Use LangGraph Platform state management
+   from langgraph.checkpoint import BaseCheckpointSaver
+   
+   class TerraformWorkflowManager:
+       def __init__(self):
+           self.platform = LangGraphPlatform()
+           self.workflow = create_terraform_workflow()
+           
+       async def execute_workflow(self, requirements: dict, thread_id: str):
+           config = {"configurable": {"thread_id": thread_id}}
+           
+           initial_state = {
+               "messages": [],
+               "requirements": requirements,
+               "generated_code": "",
+               "validation_results": [],
+               "iteration_count": 0,
+               "current_agent": "planner"
+           }
+           
+           async for event in self.workflow.astream(initial_state, config):
+               yield event
    ```
 
 ### Terraform Code Generation Rules
 
 1. **Module Structure Enforcement**:
    - Always generate following [hashi-demo-lab/tf-module-template](https://github.com/hashi-demo-lab/tf-module-template) structure
-   - Use standard file organization: main.tf, variables.tf, outputs.tf, terraform.tf, versions.tf, locals.tf
+   - Use standard file organization: main.tf, variables.tf, outputs.tf, providers.tf, versions.tf, locals.tf
    - Include comprehensive variable validation
    - Provide detailed descriptions for all variables and outputs
    - Implement proper resource tagging
    - Follow HashiCorp's [Standard Module Structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure)
+   - Apply [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/specs/tf/) best practices for generic module development
 
 2. **Security-First Approach**:
    ```hcl
@@ -150,26 +219,106 @@ terraform-agent/
 
 ### Validation Pipeline Rules
 
-1. **Cyclical Validation Implementation**:
+**MANDATORY**: All validation must be orchestrated through LangGraph Platform workflows with proper state management and tool integration.
+
+1. **LangGraph Platform Validation Workflow**:
    ```python
-   async def validate_terraform_code(self, code: str, max_iterations: int = 5):
-       for iteration in range(max_iterations):
-           results = await self.run_validation_pipeline(code)
-           if all(result.passed for result in results):
-               break
-           code = await self.refine_code(code, results)
-       return code, results
+   # MANDATORY: Use LangGraph Platform for validation orchestration
+   from langgraph.prebuilt import ToolNode
+   from langgraph import StateGraph
+   
+   def create_validation_workflow() -> StateGraph:
+       workflow = StateGraph(TerraformState)
+       
+       # Add validation tool nodes
+       terraform_tools = ToolNode([
+           terraform_validate_tool,
+           terraform_fmt_tool,
+           terraform_test_tool
+       ])
+       
+       tflint_tools = ToolNode([tflint_avm_validate_tool])
+       trivy_tools = ToolNode([trivy_scan_tool])
+       
+       workflow.add_node("terraform_validation", terraform_tools)
+       workflow.add_node("tflint_validation", tflint_tools)
+       workflow.add_node("trivy_validation", trivy_tools)
+       workflow.add_node("validation_aggregator", aggregate_validation_results)
+       
+       # Define validation flow
+       workflow.add_edge(START, "terraform_validation")
+       workflow.add_edge("terraform_validation", "tflint_validation")
+       workflow.add_edge("tflint_validation", "trivy_validation")
+       workflow.add_edge("trivy_validation", "validation_aggregator")
+       
+       return workflow.compile(checkpointer=checkpointer)
    ```
 
-2. **Tool Integration Order**:
+2. **Cyclical Validation with LangGraph Platform**:
    ```python
-   VALIDATION_SEQUENCE = [
-       "terraform_validate",
-       "terraform_fmt", 
-       "terraform_test",
-       "tflint",
-       "trivy",
-       "checkov"
+   # MANDATORY: Implement cyclical validation using LangGraph Platform state management
+   async def validate_terraform_code_workflow(
+       initial_state: TerraformState, 
+       max_iterations: int = 5
+   ) -> TerraformState:
+       
+       validation_workflow = create_validation_workflow()
+       config = {"configurable": {"thread_id": f"validation_{uuid.uuid4()}"}}
+       
+       current_state = initial_state
+       
+       for iteration in range(max_iterations):
+           # Run validation workflow
+           async for event in validation_workflow.astream(current_state, config):
+               if "validation_aggregator" in event:
+                   current_state = event["validation_aggregator"]
+           
+           # Check if validation passed
+           if all(result.passed for result in current_state["validation_results"]):
+               break
+               
+           # If validation failed, trigger refinement workflow
+           current_state["iteration_count"] = iteration + 1
+           refinement_workflow = create_refinement_workflow()
+           
+           async for event in refinement_workflow.astream(current_state, config):
+               if "refiner" in event:
+                   current_state = event["refiner"]
+       
+       return current_state
+   ```
+
+3. **Tool Integration with LangGraph Platform**:
+   ```python
+   # MANDATORY: All validation tools must be implemented as LangGraph tools
+   from langchain_core.tools import tool
+   from langgraph.prebuilt import ToolNode
+   
+   @tool
+   def terraform_validate_tool(code: str) -> dict:
+       """Validate Terraform code syntax and configuration."""
+       # Implementation here
+       return {"tool": "terraform_validate", "passed": True, "messages": []}
+   
+   @tool
+   def tflint_avm_validate_tool(code: str) -> dict:
+       """Validate Terraform code against Azure Verified Modules ruleset."""
+       # Implementation here
+       return {"tool": "tflint_avm", "passed": True, "messages": []}
+   
+   @tool
+   def trivy_scan_tool(code: str) -> dict:
+       """Scan Terraform code for security vulnerabilities."""
+       # Implementation here
+       return {"tool": "trivy", "passed": True, "messages": []}
+   
+   # Tool execution order in LangGraph Platform
+   VALIDATION_TOOL_SEQUENCE = [
+       terraform_validate_tool,
+       terraform_fmt_tool,
+       terraform_test_tool,
+       tflint_avm_validate_tool,
+       trivy_scan_tool
    ]
    ```
 
@@ -299,15 +448,12 @@ tools:
   trivy:
     severity: ["HIGH", "CRITICAL"]
     scan_type: ["config", "secret"]
-  
-  checkov:
-    framework: ["terraform"]
-    check_type: ["all"]
 
-memory:
-  provider: "langmem"
+langgraph_platform:
+  checkpointer: "memory"  # or "postgres", "redis" for production
   persistence: true
-  context_window: 10000
+  thread_management: true
+  state_schema: "TerraformState"
 ```
 
 ### Best Practices Configuration
@@ -335,6 +481,56 @@ documentation:
   include_examples: true
   generate_diagrams: true
 ```
+
+## Azure Verified Modules (AVM) Best Practices
+
+Based on [Azure Verified Modules Terraform Specifications](https://azure.github.io/Azure-Verified-Modules/specs/tf/) and detailed in [AVM_BEST_PRACTICES.md](./AVM_BEST_PRACTICES.md), implement these generic best practices:
+
+### Code Style Standards
+1. **Naming Conventions**:
+   - Use snake_case for all resource names, variables, and outputs
+   - Prefix variables with descriptive context (e.g., `enable_`, `create_`, `default_`)
+   - Use consistent naming patterns across modules
+
+2. **Variable Validation**:
+   ```hcl
+   variable "environment" {
+     description = "Environment name (e.g., dev, staging, prod)"
+     type        = string
+     validation {
+       condition     = contains(["dev", "staging", "prod"], var.environment)
+       error_message = "Environment must be dev, staging, or prod."
+     }
+   }
+   ```
+
+3. **Output Standards**:
+   ```hcl
+   output "resource_id" {
+     description = "The resource identifier of the created resource"
+     value       = aws_resource.example.id
+   }
+   
+   output "resource_name" {
+     description = "The name of the created resource"
+     value       = aws_resource.example.name
+   }
+   ```
+
+### Module Classification Standards
+1. **Resource Modules**: Single-purpose modules for specific resources
+2. **Pattern Modules**: Multi-resource modules implementing common patterns
+3. **Utility Modules**: Helper modules for common operations
+
+### Contribution and Support Standards
+1. **Module Ownership**: Clear ownership and maintenance responsibilities
+2. **Issue Tracking**: Comprehensive issue tracking and resolution
+3. **Community Support**: Active community engagement and support
+
+### Telemetry Integration
+1. **Usage Tracking**: Implement telemetry for module usage analytics
+2. **Performance Monitoring**: Track module performance and optimization
+3. **Compliance Reporting**: Generate compliance and governance reports
 
 ## Testing Standards
 
@@ -436,8 +632,95 @@ logger = structlog.configure(
 
 1. **Inline Documentation**: All functions must have comprehensive docstrings
 2. **Type Hints**: Use Python type hints throughout the codebase
-3. **README Generation**: Auto-generate module READMEs with usage examples
+3. **README Generation**: Auto-generate module READMEs with terraform-docs
 4. **API Documentation**: Maintain OpenAPI specifications for all endpoints
+5. **AVM Documentation Standards**: Follow Azure Verified Modules documentation requirements
+6. **Usage Examples**: Include practical examples for all module classifications
+
+## LangGraph Platform Deployment
+
+**MANDATORY**: All deployments must use LangGraph Platform for production-ready workflow orchestration.
+
+### 1. Platform Configuration
+```python
+# platform/langgraph_config.py
+from langgraph.platform import LangGraphPlatform
+from langgraph.checkpoint.postgres import PostgresCheckpointSaver
+from langgraph.checkpoint.memory import MemorySaver
+
+class PlatformConfig:
+    def __init__(self, environment: str = "development"):
+        self.environment = environment
+        self.platform = LangGraphPlatform()
+        
+    def get_checkpointer(self):
+        if self.environment == "production":
+            return PostgresCheckpointSaver(
+                connection_string=os.getenv("POSTGRES_CONNECTION_STRING")
+            )
+        return MemorySaver()
+    
+    def configure_deployment(self):
+        return {
+            "workflows": {
+                "terraform_generation": create_terraform_workflow(),
+                "validation_pipeline": create_validation_workflow(),
+                "refinement_cycle": create_refinement_workflow()
+            },
+            "checkpointer": self.get_checkpointer(),
+            "thread_management": True,
+            "state_persistence": True
+        }
+```
+
+### 2. Workflow Deployment
+```python
+# platform/deployment.py
+from langgraph.platform.deployment import deploy_workflow
+
+async def deploy_terraform_agent():
+    config = PlatformConfig("production")
+    deployment_config = config.configure_deployment()
+    
+    # Deploy to LangGraph Platform
+    deployment = await deploy_workflow(
+        workflow=deployment_config["workflows"]["terraform_generation"],
+        name="terraform-code-generation-agent",
+        version="1.0.0",
+        checkpointer=deployment_config["checkpointer"]
+    )
+    
+    return deployment
+```
+
+### 3. State Management
+```yaml
+# config/langgraph.yaml
+platform:
+  name: "terraform-agent"
+  version: "1.0.0"
+  
+workflows:
+  terraform_generation:
+    state_schema: "TerraformState"
+    checkpointer: "postgres"
+    max_iterations: 5
+    timeout: 3600
+    
+  validation_pipeline:
+    state_schema: "ValidationState"
+    checkpointer: "memory"
+    timeout: 600
+    
+deployment:
+  environment: "production"
+  scaling:
+    min_instances: 1
+    max_instances: 10
+  monitoring:
+    enabled: true
+    metrics: ["execution_time", "success_rate", "error_rate"]
+```
 
 ## Integration Points
 
@@ -574,15 +857,18 @@ output "bucket_arn" {
 
 Before committing any code, ensure:
 - [ ] Follows [hashi-demo-lab/tf-module-template](https://github.com/hashi-demo-lab/tf-module-template) structure
-- [ ] Uses standard file organization (main.tf, variables.tf, outputs.tf, terraform.tf, versions.tf, locals.tf)
+- [ ] Uses standard file organization (main.tf, variables.tf, outputs.tf, providers.tf, versions.tf, locals.tf)
+- [ ] Applies [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/specs/tf/) best practices
+- [ ] Implements proper module classification (Resource/Pattern/Utility)
 - [ ] Integrates with [HashiCorp Terraform MCP Server](https://github.com/hashicorp/terraform-mcp-server) for registry access
 - [ ] Implements MCP tools for provider and module discovery
-- [ ] Passes all validation tools (terraform, tflint, trivy, checkov)
+- [ ] Passes all validation tools (terraform, tflint_avm, trivy)
 - [ ] Includes comprehensive unit tests
 - [ ] Has proper error handling and logging
 - [ ] Implements security best practices
-- [ ] Generates complete documentation
+- [ ] Generates complete documentation with terraform-docs
+- [ ] Includes telemetry and monitoring integration
 - [ ] Respects maximum iteration limits
 - [ ] Uses async/await patterns appropriately
 - [ ] Includes proper type hints and docstrings
-- [ ] Follows naming conventions and coding standards 
+- [ ] Follows AVM naming conventions and coding standards 
