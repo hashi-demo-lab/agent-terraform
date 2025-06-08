@@ -7,7 +7,6 @@ from typing import Literal, Dict, Any, List
 from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.prebuilt import ToolNode
 
 # Import our agent components
 from utils.state import TerraformState
@@ -15,20 +14,14 @@ from utils.nodes import (
     planner_node,
     generator_node,
     validator_node,
+    validation_processor_node,
     refiner_node,
-
     reviewer_node,
     analyzer_node,
     should_continue_validation,
     should_continue_after_analysis
 )
-from utils.tools import (
-    terraform_validate_tool,
-    terraform_fmt_tool,
-    terraform_test_tool,
-    tflint_avm_validate_tool,
-    trivy_scan_tool
-)
+
 
 
 # Define the config schema for the graph
@@ -48,32 +41,22 @@ workflow = StateGraph(TerraformState, config_schema=GraphConfig)
 workflow.add_node("planner", planner_node)
 workflow.add_node("generator", generator_node)
 workflow.add_node("validator", validator_node)
+workflow.add_node("validation_processor", validation_processor_node)
 workflow.add_node("refiner", refiner_node)
-
 workflow.add_node("reviewer", reviewer_node)
 workflow.add_node("analyzer", analyzer_node)
-
-# Add tool nodes for validation
-validation_tools = [
-    terraform_validate_tool,
-    terraform_fmt_tool,
-    terraform_test_tool,
-    tflint_avm_validate_tool,
-    trivy_scan_tool
-]
-workflow.add_node("validation_tools", ToolNode(validation_tools))
 
 # Define the workflow edges
 workflow.add_edge(START, "planner")
 workflow.add_edge("planner", "generator")
 workflow.add_edge("generator", "validator")
 
-# Connect validator to validation tools
-workflow.add_edge("validator", "validation_tools")
+# Connect validator to validation processor
+workflow.add_edge("validator", "validation_processor")
 
-# Conditional edges for validation results (after tools run)
+# Conditional edges for validation results (after validation tools run)
 workflow.add_conditional_edges(
-    "validation_tools",
+    "validation_processor",
     should_continue_validation,
     {
         "continue": "refiner",

@@ -104,8 +104,8 @@ def test_graph_structure():
     try:
         # Check if graph has expected nodes
         expected_nodes = [
-            "planner", "generator", "validator", "refiner", 
-            "reviewer", "analyzer", "validation_tools"
+            "planner", "generator", "validator", "validation_processor", "refiner", 
+            "reviewer", "analyzer"
         ]
         
         # Get graph nodes (this is a simplified check)
@@ -132,7 +132,7 @@ def test_imports():
         print("  ✅ State management imports successful")
         
         from terraform_agent.utils.nodes import (
-            planner_node, generator_node, validator_node,
+            planner_node, generator_node, validator_node, validation_processor_node,
             should_continue_validation, should_continue_after_analysis
         )
         print("  ✅ Node function imports successful")

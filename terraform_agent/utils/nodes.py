@@ -223,6 +223,94 @@ def validator_node(state: TerraformState) -> TerraformState:
     return state
 
 
+def validation_processor_node(state: TerraformState) -> TerraformState:
+    """
+    Process validation tool results and update state
+    """
+    state["current_agent"] = "validation_processor"
+    
+    # Get the generated code
+    generated_code = state.get("generated_code", "")
+    
+    if not generated_code:
+        state["validation_results"] = []
+        return state
+    
+    # Import validation tools and run them
+    from .tools import (
+        terraform_validate_tool,
+        terraform_fmt_tool,
+        terraform_test_tool,
+        tflint_avm_validate_tool,
+        trivy_scan_tool
+    )
+    from .state import ValidationResult, ValidationStatus
+    import time
+    
+    # Run all validation tools
+    validation_tools = [
+        terraform_validate_tool,
+        terraform_fmt_tool,
+        terraform_test_tool,
+        tflint_avm_validate_tool,
+        trivy_scan_tool
+    ]
+    
+    validation_results = []
+    
+    for tool in validation_tools:
+        start_time = time.time()
+        try:
+            # Call the tool with the generated code
+            result = tool.invoke({"code": generated_code})
+            execution_time = time.time() - start_time
+            
+            # Convert tool result to ValidationResult
+            validation_result = ValidationResult(
+                tool=result["tool"],
+                status=ValidationStatus.PASSED if result["passed"] else ValidationStatus.FAILED,
+                passed=result["passed"],
+                messages=result.get("messages", []),
+                errors=result.get("errors", []),
+                warnings=result.get("warnings", []),
+                execution_time=execution_time
+            )
+            validation_results.append(validation_result)
+            
+        except Exception as e:
+            # Handle tool execution errors
+            validation_result = ValidationResult(
+                tool=tool.name,
+                status=ValidationStatus.FAILED,
+                passed=False,
+                messages=[],
+                errors=[f"Tool execution failed: {str(e)}"],
+                warnings=[],
+                execution_time=time.time() - start_time
+            )
+            validation_results.append(validation_result)
+    
+    # Update state with validation results
+    state["validation_results"] = validation_results
+    
+    # Generate summary message
+    passed_count = len([r for r in validation_results if r.passed])
+    total_count = len(validation_results)
+    
+    validation_message = AIMessage(
+        content=f"Validation completed: {passed_count}/{total_count} checks passed",
+        additional_kwargs={
+            "agent": "validation_processor", 
+            "step": "validation_completed",
+            "passed": passed_count,
+            "total": total_count
+        }
+    )
+    state["messages"].append(validation_message)
+    
+    return state
+
+
 def refiner_node(state: TerraformState) -> TerraformState:
     """
     Refiner agent node - refines code based on validation feedback
