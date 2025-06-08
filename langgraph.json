@@ -1,0 +1,34 @@
+{
+  "dependencies": ["./terraform_agent"],
+  "graphs": {
+    "terraform_agent": "./terraform_agent/agent.py:graph"
+  },
+  "env": ".env",
+  "python_version": "3.11",
+  "dockerfile_lines": [
+    "RUN apt-get update && apt-get install -y curl unzip",
+    "RUN curl -fsSL https://releases.hashicorp.com/terraform/1.12.0/terraform_1.12.0_linux_amd64.zip -o terraform.zip",
+    "RUN unzip terraform.zip && mv terraform /usr/local/bin/ && rm terraform.zip",
+    "RUN curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash",
+    "RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin"
+  ],
+  "store": {
+    "index": {
+      "embed": "openai:text-embedding-3-small",
+      "dims": 1536,
+      "fields": ["$"]
+    },
+    "ttl": {
+      "refresh_on_read": true,
+      "sweep_interval_minutes": 60,
+      "default_ttl": 10080
+    }
+  },
+  "checkpointer": {
+    "ttl": {
+      "strategy": "delete",
+      "sweep_interval_minutes": 10,
+      "default_ttl": 43200
+    }
+  }
+} 
