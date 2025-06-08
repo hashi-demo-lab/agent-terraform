@@ -1,0 +1,588 @@
+# Terraform Code Generation Agent - Cursor Rules
+
+## Project Structure and Standards
+
+### Directory Architecture
+Follow this exact structure for all Terraform agent development:
+
+```
+terraform-agent/
+├── src/
+│   ├── agents/
+│   │   ├── planner.py          # Requirements analysis and resource planning
+│   │   ├── generator.py        # Code generation and templating
+│   │   ├── validator.py        # Multi-tool validation orchestration
+│   │   ├── refiner.py          # Code improvement and optimization
+│   │   ├── documenter.py       # Documentation generation
+│   │   └── reviewer.py         # Final quality assurance
+│   ├── workflows/
+│   │   ├── terraform_workflow.py  # Main LangGraph workflow
+│   │   └── validation_pipeline.py # Validation orchestration
+│   ├── tools/
+│   │   ├── terraform_tools.py     # Terraform CLI wrappers
+│   │   ├── tflint_tools.py        # TFLint integration
+│   │   ├── trivy_tools.py         # Trivy security scanning
+│   │   └── checkov_tools.py       # Checkov compliance validation
+│   ├── templates/
+│   │   ├── aws/                   # AWS-specific templates
+│   │   ├── azure/                 # Azure-specific templates
+│   │   ├── gcp/                   # GCP-specific templates
+│   │   └── base/                  # Base module templates
+│   ├── memory/
+│   │   ├── langmem_config.py      # LangMem configuration
+│   │   └── context_manager.py     # Context persistence
+│   ├── config/
+│   │   ├── validation_rules.yaml  # Validation tool configurations
+│   │   ├── best_practices.yaml    # Best practice enforcement
+│   │   └── cloud_configs.yaml     # Cloud provider settings
+│   └── utils/
+│       ├── terraform_parser.py    # HCL parsing utilities
+│       ├── file_manager.py        # File system operations
+│       └── cli_integration.py     # Claude Coder/OpenCode-AI integration
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── terraform/                 # Terraform test configurations
+├── examples/
+│   ├── generated_modules/         # Example generated modules
+│   └── workflows/                 # Example workflow configurations
+├── docs/
+│   ├── architecture.md
+│   ├── api_reference.md
+│   └── user_guide.md
+├── config/
+│   ├── development.yaml
+│   ├── production.yaml
+│   └── local.yaml
+└── scripts/
+    ├── setup.sh
+    ├── validate.sh
+    └── deploy.sh
+```
+
+## Coding Standards
+
+### Python Development Rules
+
+1. **Agent Implementation**:
+   ```python
+   # Each agent must inherit from BaseAgent
+   from langgraph import BaseAgent
+   from langmem import MemoryManager
+   
+   class PlannerAgent(BaseAgent):
+       def __init__(self, memory_manager: MemoryManager):
+           super().__init__()
+           self.memory = memory_manager
+           self.max_iterations = 5
+   ```
+
+2. **Workflow Definition**:
+   ```python
+   # Use LangGraph for workflow orchestration
+   from langgraph import StateGraph, START, END
+   
+   def create_terraform_workflow():
+       workflow = StateGraph()
+       workflow.add_node("planner", PlannerAgent)
+       workflow.add_node("generator", GeneratorAgent)
+       # ... additional nodes
+       return workflow
+   ```
+
+3. **Memory Management**:
+   ```python
+   # Implement persistent context with LangMem
+   from langmem import MemoryManager, Context
+   
+   class TerraformContext(Context):
+       requirements: dict
+       generated_code: str
+       validation_results: list
+       iteration_count: int = 0
+   ```
+
+### Terraform Code Generation Rules
+
+1. **Module Structure Enforcement**:
+   - Always generate following [hashi-demo-lab/tf-module-template](https://github.com/hashi-demo-lab/tf-module-template) structure
+   - Use standard file organization: main.tf, variables.tf, outputs.tf, terraform.tf, versions.tf, locals.tf
+   - Include comprehensive variable validation
+   - Provide detailed descriptions for all variables and outputs
+   - Implement proper resource tagging
+   - Follow HashiCorp's [Standard Module Structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure)
+
+2. **Security-First Approach**:
+   ```hcl
+   # Always include security best practices following AWS provider specifications
+   resource "aws_s3_bucket_public_access_block" "example" {
+     bucket = aws_s3_bucket.example.id
+     
+     block_public_acls       = true
+     block_public_policy     = true
+     ignore_public_acls      = true
+     restrict_public_buckets = true
+   }
+   
+   # Use latest AWS provider resource configurations
+   resource "aws_s3_bucket_server_side_encryption_configuration" "example" {
+     bucket = aws_s3_bucket.example.id
+     
+     rule {
+       apply_server_side_encryption_by_default {
+         sse_algorithm = "AES256"
+       }
+     }
+   }
+   ```
+
+3. **Variable Standards**:
+   ```hcl
+   variable "environment" {
+     description = "Environment name (e.g., dev, staging, prod)"
+     type        = string
+     validation {
+       condition     = contains(["dev", "staging", "prod"], var.environment)
+       error_message = "Environment must be dev, staging, or prod."
+     }
+   }
+   ```
+
+### Validation Pipeline Rules
+
+1. **Cyclical Validation Implementation**:
+   ```python
+   async def validate_terraform_code(self, code: str, max_iterations: int = 5):
+       for iteration in range(max_iterations):
+           results = await self.run_validation_pipeline(code)
+           if all(result.passed for result in results):
+               break
+           code = await self.refine_code(code, results)
+       return code, results
+   ```
+
+2. **Tool Integration Order**:
+   ```python
+   VALIDATION_SEQUENCE = [
+       "terraform_validate",
+       "terraform_fmt", 
+       "terraform_test",
+       "tflint",
+       "trivy",
+       "checkov"
+   ]
+   ```
+
+### CLI Integration Rules
+
+1. **Claude Coder Integration**:
+   ```python
+   # Implement language server protocol support
+   from lsp_server import LanguageServer
+   
+   class TerraformLanguageServer(LanguageServer):
+       def __init__(self):
+           super().__init__()
+           self.agent_client = TerraformAgentClient()
+   ```
+
+2. **Command Line Interface**:
+   ```python
+   # Use Click for CLI implementation
+   import click
+   
+   @click.group()
+   def terraform_agent():
+       """Terraform Code Generation Agent CLI"""
+       pass
+   
+   @terraform_agent.command()
+   @click.option('--requirements', '-r', help='Requirements file path')
+   def generate(requirements):
+       """Generate Terraform module from requirements"""
+       pass
+   ```
+
+### MCP Integration Rules
+
+1. **Terraform Registry Integration**:
+   - Use [HashiCorp Terraform MCP Server](https://github.com/hashicorp/terraform-mcp-server) for Terraform Registry API integration
+   - Implement provider and module discovery automation
+   - Extract and analyze data from Terraform Registry
+   - Get detailed information about provider resources and data sources
+
+2. **AWS Provider Focus**:
+   - Primary focus on [HashiCorp Terraform AWS Provider](https://github.com/hashicorp/terraform-provider-aws)
+   - Reference AWS provider specifications and resource definitions
+   - Use AWS provider documentation for accurate resource configurations
+   - Leverage AWS provider examples and best practices
+
+3. **MCP Tool Configuration**:
+   ```json
+   {
+     "mcp": {
+       "servers": {
+         "terraform": {
+           "command": "docker",
+           "args": [
+             "run",
+             "-i",
+             "--rm",
+             "hashicorp/terraform-mcp-server"
+           ]
+         }
+       }
+     }
+   }
+   ```
+
+4. **Available MCP Toolsets**:
+   ```python
+   MCP_TOOLS = {
+       "providers": {
+           "resolveProviderDocID": "Find available documentation for specific provider",
+           "getProviderDocs": "Fetch complete documentation content for provider resources"
+       },
+       "modules": {
+           "searchModules": "Search Terraform Registry for modules with pagination",
+           "moduleDetails": "Retrieve detailed module documentation and examples"
+       }
+   }
+   ```
+
+5. **MCP Integration Implementation**:
+   ```python
+   # Integrate MCP tools for Terraform Registry access
+   from mcp_client import MCPClient
+   
+   class TerraformMCPIntegration:
+       def __init__(self):
+           self.mcp_client = MCPClient("terraform")
+       
+       async def search_providers(self, provider_name: str):
+           return await self.mcp_client.call_tool(
+               "resolveProviderDocID", 
+               {"serviceSlug": provider_name}
+           )
+       
+       async def get_module_details(self, module_id: str):
+           return await self.mcp_client.call_tool(
+               "moduleDetails",
+               {"moduleId": module_id}
+           )
+       
+       async def get_aws_provider_docs(self, resource_type: str):
+           return await self.mcp_client.call_tool(
+               "getProviderDocs",
+               {"serviceSlug": "aws", "resourceType": resource_type}
+           )
+   ```
+
+## Configuration Management
+
+### Environment Configuration
+```yaml
+# config/development.yaml
+terraform:
+  version: "1.12"
+  backend: "local"
+  
+validation:
+  max_iterations: 5
+  fail_fast: false
+  
+tools:
+  tflint:
+    config_path: ".tflint.hcl"
+    enabled_rules: ["all"]
+  
+  trivy:
+    severity: ["HIGH", "CRITICAL"]
+    scan_type: ["config", "secret"]
+  
+  checkov:
+    framework: ["terraform"]
+    check_type: ["all"]
+
+memory:
+  provider: "langmem"
+  persistence: true
+  context_window: 10000
+```
+
+### Best Practices Configuration
+```yaml
+# config/best_practices.yaml
+naming_conventions:
+  resources: "snake_case"
+  variables: "snake_case"
+  outputs: "snake_case"
+  
+tagging:
+  required_tags:
+    - "Environment"
+    - "Project"
+    - "Owner"
+    - "CostCenter"
+  
+security:
+  encryption_at_rest: true
+  encryption_in_transit: true
+  public_access_blocked: true
+  
+documentation:
+  require_descriptions: true
+  include_examples: true
+  generate_diagrams: true
+```
+
+## Testing Standards
+
+### Unit Testing
+```python
+# tests/unit/test_generator_agent.py
+import pytest
+from src.agents.generator import GeneratorAgent
+
+class TestGeneratorAgent:
+    @pytest.fixture
+    def generator_agent(self):
+        return GeneratorAgent()
+    
+    def test_generate_aws_module(self, generator_agent):
+        requirements = {"provider": "aws", "resources": ["s3_bucket"]}
+        result = generator_agent.generate_module(requirements)
+        assert "resource \"aws_s3_bucket\"" in result
+```
+
+### Terraform Testing
+```hcl
+# tests/terraform/s3_module_test.tftest.hcl
+run "validate_s3_bucket_creation" {
+  command = plan
+  
+  variables {
+    bucket_name = "test-bucket"
+    environment = "dev"
+  }
+  
+  assert {
+    condition     = aws_s3_bucket.example.bucket == "test-bucket-dev"
+    error_message = "Bucket name should include environment suffix"
+  }
+}
+```
+
+## Error Handling and Logging
+
+### Error Handling
+```python
+from typing import Result
+import structlog
+
+logger = structlog.get_logger()
+
+class TerraformAgentError(Exception):
+    """Base exception for Terraform Agent"""
+    pass
+
+class ValidationError(TerraformAgentError):
+    """Validation pipeline errors"""
+    pass
+
+async def safe_execute(func, *args, **kwargs) -> Result:
+    try:
+        result = await func(*args, **kwargs)
+        logger.info("Operation completed successfully", function=func.__name__)
+        return Result.success(result)
+    except Exception as e:
+        logger.error("Operation failed", function=func.__name__, error=str(e))
+        return Result.failure(e)
+```
+
+### Structured Logging
+```python
+# Configure structured logging
+import structlog
+
+logger = structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.processors.JSONRenderer()
+    ],
+    wrapper_class=structlog.stdlib.BoundLogger,
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+)
+```
+
+## Performance Requirements
+
+1. **Async/Await Pattern**: Use async/await for all I/O operations
+2. **Connection Pooling**: Implement connection pooling for external tool calls
+3. **Caching**: Cache validation results and template generations
+4. **Memory Management**: Implement proper cleanup in LangMem contexts
+
+## Security Requirements
+
+1. **Secret Management**: Never hardcode secrets in generated code
+2. **Input Validation**: Validate all user inputs and requirements
+3. **Sandboxed Execution**: Run validation tools in isolated environments
+4. **Audit Logging**: Log all code generation and validation activities
+
+## Documentation Requirements
+
+1. **Inline Documentation**: All functions must have comprehensive docstrings
+2. **Type Hints**: Use Python type hints throughout the codebase
+3. **README Generation**: Auto-generate module READMEs with usage examples
+4. **API Documentation**: Maintain OpenAPI specifications for all endpoints
+
+## Integration Points
+
+1. **Version Control**: Git integration for generated module versioning
+2. **CI/CD**: GitHub Actions/GitLab CI integration templates
+3. **Monitoring**: Prometheus metrics and Grafana dashboards
+4. **Cloud Integration**: Support for Terraform Cloud/Enterprise
+5. **MCP Integration**: [HashiCorp Terraform MCP Server](https://github.com/hashicorp/terraform-mcp-server) for Terraform Registry API access
+6. **Registry Automation**: Automated provider and module discovery through MCP tools
+
+## Terraform Module Template Structure
+
+When generating new Terraform modules, always follow the [hashi-demo-lab/tf-module-template](https://github.com/hashi-demo-lab/tf-module-template) structure:
+
+### Required Files (Root Module)
+- **main.tf** - Primary resource definitions and module logic
+- **variables.tf** - Input variable declarations with descriptions and validation
+- **outputs.tf** - Output value definitions with descriptions
+- **providers.tf** - Terraform version constraints and backend configuration
+- **versions.tf** - Provider version constraints
+- **locals.tf** - Local value definitions for computed values
+- **terraform.auto.tfvars** - Terraform variables file
+
+### Optional Structure Elements
+- **README.md** - Module documentation (auto-generated with terraform-docs)
+- **LICENSE** - Module license
+- **examples/** - Usage examples directory
+- **tests/** - Terraform test configurations
+- **.github/** - GitHub workflows and templates
+- **.pre-commit-config.yaml** - Pre-commit hooks configuration
+
+### File Organization Standards
+```hcl
+# providers.tf - Backend and Terraform version
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# versions.tf - Provider configurations
+provider "aws" {
+  region = var.aws_region
+  
+  default_tags {
+    tags = local.common_tags
+  }
+}
+
+# variables.tf - Input variables following AWS provider patterns
+variable "environment" {
+  description = "Environment name (e.g., dev, staging, prod)"
+  type        = string
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod."
+  }
+}
+
+variable "aws_region" {
+  description = "AWS region for resources"
+  type        = string
+  default     = "us-west-2"
+  validation {
+    condition = can(regex("^[a-z]{2}-[a-z]+-[0-9]$", var.aws_region))
+    error_message = "AWS region must be in valid format (e.g., us-west-2)."
+  }
+}
+
+# locals.tf - Computed values
+locals {
+  common_tags = {
+    Environment = var.environment
+    Project     = var.project_name
+    ManagedBy   = "terraform"
+    CreatedBy   = "terraform-agent"
+  }
+  
+  bucket_name = "${var.project_name}-${var.environment}-${random_id.bucket_suffix.hex}"
+}
+
+# main.tf - AWS resources following provider specifications
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+resource "aws_s3_bucket" "example" {
+  bucket = local.bucket_name
+}
+
+resource "aws_s3_bucket_versioning" "example" {
+  bucket = aws_s3_bucket.example.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "example" {
+  bucket = aws_s3_bucket.example.id
+  
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "example" {
+  bucket = aws_s3_bucket.example.id
+  
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# outputs.tf - Output values
+output "bucket_name" {
+  description = "Name of the created S3 bucket"
+  value       = aws_s3_bucket.example.bucket
+}
+
+output "bucket_arn" {
+  description = "ARN of the created S3 bucket"
+  value       = aws_s3_bucket.example.arn
+}
+```
+
+## Code Review Checklist
+
+Before committing any code, ensure:
+- [ ] Follows [hashi-demo-lab/tf-module-template](https://github.com/hashi-demo-lab/tf-module-template) structure
+- [ ] Uses standard file organization (main.tf, variables.tf, outputs.tf, terraform.tf, versions.tf, locals.tf)
+- [ ] Integrates with [HashiCorp Terraform MCP Server](https://github.com/hashicorp/terraform-mcp-server) for registry access
+- [ ] Implements MCP tools for provider and module discovery
+- [ ] Passes all validation tools (terraform, tflint, trivy, checkov)
+- [ ] Includes comprehensive unit tests
+- [ ] Has proper error handling and logging
+- [ ] Implements security best practices
+- [ ] Generates complete documentation
+- [ ] Respects maximum iteration limits
+- [ ] Uses async/await patterns appropriately
+- [ ] Includes proper type hints and docstrings
+- [ ] Follows naming conventions and coding standards 
