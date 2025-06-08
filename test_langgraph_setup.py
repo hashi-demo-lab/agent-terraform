@@ -105,7 +105,7 @@ def test_graph_structure():
         # Check if graph has expected nodes
         expected_nodes = [
             "planner", "generator", "validator", "refiner", 
-            "documenter", "reviewer", "analyzer", "validation_tools"
+            "reviewer", "analyzer", "validation_tools"
         ]
         
         # Get graph nodes (this is a simplified check)

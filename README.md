@@ -124,8 +124,7 @@ graph TD
     I --> K[Generator Agent]
     K --> L[Validator Agent]
     L --> M[Refiner Agent]
-    M --> N[Documenter Agent]
-    N --> O[Reviewer Agent]
+    M --> O[Reviewer Agent]
     O --> G
 ```
 

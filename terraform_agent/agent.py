@@ -16,7 +16,7 @@ from utils.nodes import (
     generator_node,
     validator_node,
     refiner_node,
-    documenter_node,
+
     reviewer_node,
     analyzer_node,
     should_continue_validation,
@@ -49,7 +49,7 @@ workflow.add_node("planner", planner_node)
 workflow.add_node("generator", generator_node)
 workflow.add_node("validator", validator_node)
 workflow.add_node("refiner", refiner_node)
-workflow.add_node("documenter", documenter_node)
+
 workflow.add_node("reviewer", reviewer_node)
 workflow.add_node("analyzer", analyzer_node)
 
@@ -74,7 +74,7 @@ workflow.add_conditional_edges(
     should_continue_validation,
     {
         "continue": "refiner",
-        "complete": "documenter",
+        "complete": "reviewer",
         "analyze": "analyzer"
     }
 )
@@ -88,12 +88,11 @@ workflow.add_conditional_edges(
     should_continue_after_analysis,
     {
         "refine": "refiner",
-        "document": "documenter"
+        "complete": "reviewer"
     }
 )
 
-# Documentation and review
-workflow.add_edge("documenter", "reviewer")
+# Final review
 workflow.add_edge("reviewer", END)
 
 # Compile the graph

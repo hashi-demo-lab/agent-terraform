@@ -247,9 +247,8 @@ class StateValidator:
             "": ["planner"],
             "planner": ["generator", "analyzer"],
             "generator": ["validator"],
-            "validator": ["refiner", "documenter"],
+            "validator": ["refiner", "reviewer"],
             "refiner": ["generator", "validator"],
-            "documenter": ["reviewer"],
             "reviewer": ["end"],
             "analyzer": ["validator", "refiner"]
         }

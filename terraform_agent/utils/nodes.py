@@ -31,6 +31,10 @@ def planner_node(state: TerraformState) -> TerraformState:
     )
     state["messages"].append(planning_message)
     
+    # Initialize context_memory if it doesn't exist
+    if "context_memory" not in state:
+        state["context_memory"] = {}
+    
     # Extract requirements if provided
     requirements = state.get("requirements")
     if requirements:
@@ -291,64 +295,6 @@ def analyzer_node(state: TerraformState) -> TerraformState:
     return state
 
 
-def documenter_node(state: TerraformState) -> TerraformState:
-    """
-    Documenter agent node - generates documentation for the Terraform code
-    """
-    state["current_agent"] = "documenter"
-    
-    # Generate documentation
-    plan = state.get("context_memory", {}).get("plan", {})
-    provider = plan.get("provider", "aws")
-    environment = plan.get("environment", "dev")
-    
-    documentation = f"""
-# Terraform Infrastructure Documentation
-
-## Overview
-This Terraform configuration creates infrastructure for the {environment} environment using the {provider} provider.
-
-## Generated Resources
-- S3 Bucket with versioning and encryption
-- Public access blocking for security
-- Proper tagging for resource management
-
-## Variables
-- `environment`: Target environment (dev/staging/prod)
-- `aws_region`: AWS region for deployment
-- `project_name`: Project identifier for resource naming
-
-## Outputs
-- `bucket_name`: The name of the created S3 bucket
-- `bucket_arn`: The ARN of the created S3 bucket
-
-## Security Features
-- Server-side encryption enabled
-- Public access blocked
-- Versioning enabled for data protection
-
-## Usage
-```bash
-terraform init
-terraform plan
-terraform apply
-```
-
-## Compliance
-This configuration follows AWS best practices and AVM standards.
-"""
-    
-    state["documentation"] = documentation
-    
-    # Add documentation message
-    doc_message = AIMessage(
-        content="Documentation generated successfully",
-        additional_kwargs={"agent": "documenter", "step": "documentation_generated"}
-    )
-    state["messages"].append(doc_message)
-    
-    return state
-
 
 def reviewer_node(state: TerraformState) -> TerraformState:
     """
@@ -407,7 +353,7 @@ def should_continue_validation(state: TerraformState) -> Literal["continue", "co
     return "continue"
 
 
-def should_continue_after_analysis(state: TerraformState) -> Literal["refine", "document"]:
+def should_continue_after_analysis(state: TerraformState) -> Literal["refine", "complete"]:
     """Determine next step after analysis"""
     
     analysis_results = state.get("analysis_results", {})
@@ -418,4 +364,4 @@ def should_continue_after_analysis(state: TerraformState) -> Literal["refine", "
     if issues_found:
         return "refine"
     
-    return "document" 
+    return "complete" 

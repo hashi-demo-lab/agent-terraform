@@ -18,7 +18,6 @@ from ..agents.planner import PlannerAgent
 from ..agents.generator import GeneratorAgent
 from ..agents.validator import ValidatorAgent
 from ..agents.refiner import RefinerAgent
-from ..agents.documenter import DocumenterAgent
 from ..agents.reviewer import ReviewerAgent
 from ..agents.analyzer import AnalyzerAgent
 from ..tools.terraform_tools import terraform_tool_node
@@ -49,7 +48,6 @@ class TerraformWorkflow:
         generator = GeneratorAgent(self.platform)
         validator = ValidatorAgent(self.platform)
         refiner = RefinerAgent(self.platform)
-        documenter = DocumenterAgent(self.platform)
         reviewer = ReviewerAgent(self.platform)
         analyzer = AnalyzerAgent(self.platform)
         
@@ -58,7 +56,6 @@ class TerraformWorkflow:
         workflow.add_node("generator", generator)
         workflow.add_node("validator", validator)
         workflow.add_node("refiner", refiner)
-        workflow.add_node("documenter", documenter)
         workflow.add_node("reviewer", reviewer)
         workflow.add_node("analyzer", analyzer)
         
@@ -78,7 +75,7 @@ class TerraformWorkflow:
             self._should_continue_validation,
             {
                 "continue": "refiner",
-                "complete": "documenter",
+                "complete": "reviewer",
                 "analyze": "analyzer"
             }
         )
@@ -92,12 +89,11 @@ class TerraformWorkflow:
             self._should_continue_after_analysis,
             {
                 "refine": "refiner",
-                "document": "documenter"
+                "complete": "reviewer"
             }
         )
         
-        # Documentation and review
-        workflow.add_edge("documenter", "reviewer")
+        # Final review
         workflow.add_edge("reviewer", END)
         
         # Compile workflow with checkpointer
@@ -139,7 +135,7 @@ class TerraformWorkflow:
         # Continue with refinement
         return "continue"
     
-    def _should_continue_after_analysis(self, state: TerraformState) -> Literal["refine", "document"]:
+    def _should_continue_after_analysis(self, state: TerraformState) -> Literal["refine", "complete"]:
         """Determine next step after analysis"""
         
         analysis_results = state.get("analysis_results", {})
@@ -154,7 +150,7 @@ class TerraformWorkflow:
         if critical_issues:
             return "refine"
         
-        return "document"
+        return "complete"
     
     async def execute_workflow(self, 
                              requirements: Dict[str, Any],

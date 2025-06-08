@@ -22,7 +22,7 @@ from ..agents.planner import PlannerAgent
 from ..agents.generator import GeneratorAgent
 from ..agents.validator import ValidatorAgent
 from ..agents.refiner import RefinerAgent
-from ..agents.documenter import DocumenterAgent
+
 from ..agents.reviewer import ReviewerAgent
 from ..tools.terraform_tools import TerraformTools
 from ..tools.mcp_integration import TerraformMCPIntegration
@@ -299,7 +299,7 @@ def create_analysis_workflow() -> StateGraph:
     workflow.add_node("generator", GeneratorAgent(platform))
     workflow.add_node("validator", ValidatorAgent(platform))
     workflow.add_node("refiner", RefinerAgent(platform))
-    workflow.add_node("documenter", DocumenterAgent(platform))
+
     workflow.add_node("reviewer", ReviewerAgent(platform))
     
     # Add tool nodes
@@ -350,14 +350,13 @@ def create_analysis_workflow() -> StateGraph:
     workflow.add_edge("generator", "validator")
     workflow.add_conditional_edges(
         "validator",
-        lambda state: "refiner" if state.get("iteration_count", 0) < state.get("max_iterations", 3) else "documenter",
+        lambda state: "refiner" if state.get("iteration_count", 0) < state.get("max_iterations", 3) else "reviewer",
         {
             "refiner": "refiner",
-            "documenter": "documenter"
+            "reviewer": "reviewer"
         }
     )
     workflow.add_edge("refiner", "generator")
-    workflow.add_edge("documenter", "reviewer")
     workflow.add_edge("reviewer", END)
     
     return workflow.compile(checkpointer=checkpointer)
