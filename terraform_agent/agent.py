@@ -10,8 +10,8 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 
 # Import our agent components
-from terraform_agent.utils.state import TerraformState
-from terraform_agent.utils.nodes import (
+from utils.state import TerraformState
+from utils.nodes import (
     planner_node,
     generator_node,
     validator_node,
@@ -22,7 +22,7 @@ from terraform_agent.utils.nodes import (
     should_continue_validation,
     should_continue_after_analysis
 )
-from terraform_agent.utils.tools import (
+from utils.tools import (
     terraform_validate_tool,
     terraform_fmt_tool,
     terraform_test_tool,
