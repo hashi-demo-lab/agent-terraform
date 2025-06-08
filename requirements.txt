@@ -1,6 +1,6 @@
 # Terraform Code Generation Agent Dependencies
 langgraph>=0.4.8
-langgraph-sdk>=0.1.0  # SDK for LangGraph API interaction
+langgraph-sdk>>=0.1.0  # SDK for LangGraph API interaction
 langgraph-cli>=0.2.0  # CLI tools for LangGraph Platform
 langchain>=0.3.0
 langchain-core>=0.3.0

@@ -33,6 +33,24 @@ A comprehensive Terraform code generation agent that follows industry best pract
 
 ## Quick Start
 
+### LangGraph Platform Deployment
+
+The agent is now fully compatible with LangGraph Platform for production deployment:
+
+```bash
+# Install LangGraph CLI
+pip install langgraph-cli
+
+# Local development
+langgraph dev
+
+# Build for deployment
+langgraph build -t terraform-agent
+
+# Deploy to LangGraph Platform
+langgraph up
+```
+
 ### Basic Analysis
 
 ```python
