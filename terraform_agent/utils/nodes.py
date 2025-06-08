@@ -195,46 +195,31 @@ output "bucket_arn" {{
 
 def validator_node(state: TerraformState) -> TerraformState:
     """
-    Validator agent node - validates generated Terraform code
+    Validator agent node - prepares code for validation tools
     """
     state["current_agent"] = "validator"
     
-    # Simulate validation (in real implementation, this would call actual validation tools)
-    from .state import ValidationResult
+    # Get the generated code to validate
+    generated_code = state.get("generated_code", "")
     
-    validation_results = [
-        ValidationResult(
-            tool="terraform_validate",
-            status=ValidationStatus.PASSED,
-            passed=True,
-            messages=["Terraform configuration is valid"],
-            execution_time=0.5
-        ),
-        ValidationResult(
-            tool="terraform_fmt",
-            status=ValidationStatus.PASSED,
-            passed=True,
-            messages=["Code formatting is correct"],
-            execution_time=0.2
-        ),
-        ValidationResult(
-            tool="tflint_avm",
-            status=ValidationStatus.PASSED,
-            passed=True,
-            messages=["AVM best practices compliance verified"],
-            execution_time=1.0
+    if not generated_code:
+        # No code to validate
+        validation_message = AIMessage(
+            content="No generated code found for validation",
+            additional_kwargs={"agent": "validator", "step": "validation_skipped"}
         )
-    ]
+        state["messages"].append(validation_message)
+        return state
     
-    state["validation_results"] = validation_results
-    
-    # Add validation message
+    # Prepare validation message
     validation_message = AIMessage(
-        content=f"Validation completed: {len([r for r in validation_results if r.passed])}/{len(validation_results)} checks passed",
-        additional_kwargs={"agent": "validator", "step": "validation_completed"}
+        content="Preparing code for validation tools...",
+        additional_kwargs={"agent": "validator", "step": "validation_prepared"}
     )
     state["messages"].append(validation_message)
     
+    # The actual validation will be done by the validation_tools ToolNode
+    # This node just prepares the state for validation
     return state
 
 
