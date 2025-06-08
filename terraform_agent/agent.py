@@ -68,9 +68,12 @@ workflow.add_edge(START, "planner")
 workflow.add_edge("planner", "generator")
 workflow.add_edge("generator", "validator")
 
-# Conditional edges for validation results
+# Connect validator to validation tools
+workflow.add_edge("validator", "validation_tools")
+
+# Conditional edges for validation results (after tools run)
 workflow.add_conditional_edges(
-    "validator",
+    "validation_tools",
     should_continue_validation,
     {
         "continue": "refiner",
