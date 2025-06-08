@@ -9,7 +9,11 @@ from enum import Enum
 from datetime import datetime
 
 from langchain_core.messages import BaseMessage
-from langgraph import add_messages
+
+# LangGraph Platform compatible message handling
+def add_messages(left: list, right: list) -> list:
+    """Add messages to the state - LangGraph Platform compatible"""
+    return left + right
 
 
 class WorkflowStatus(Enum):
