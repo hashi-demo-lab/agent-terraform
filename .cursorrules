@@ -858,17 +858,14 @@ output "bucket_arn" {
 Before committing any code, ensure:
 - [ ] Follows [hashi-demo-lab/tf-module-template](https://github.com/hashi-demo-lab/tf-module-template) structure
 - [ ] Uses standard file organization (main.tf, variables.tf, outputs.tf, providers.tf, versions.tf, locals.tf)
-- [ ] Applies [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/specs/tf/) best practices
+- [ ] Applies [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/specs/tf/) best practices for local copy see ./AVM_BEST_PRACTICES.md
 - [ ] Implements proper module classification (Resource/Pattern/Utility)
 - [ ] Integrates with [HashiCorp Terraform MCP Server](https://github.com/hashicorp/terraform-mcp-server) for registry access
 - [ ] Implements MCP tools for provider and module discovery
-- [ ] Passes all validation tools (terraform, tflint_avm, trivy)
-- [ ] Includes comprehensive unit tests
-- [ ] Has proper error handling and logging
+- [ ] Passes all validation tools ("terraform validate", "terraform test", "tflint_avm", "trivy")
+- [ ] Includes comprehensive unit tests, using "terraform test"
 - [ ] Implements security best practices
 - [ ] Generates complete documentation with terraform-docs
-- [ ] Includes telemetry and monitoring integration
-- [ ] Respects maximum iteration limits
 - [ ] Uses async/await patterns appropriately
 - [ ] Includes proper type hints and docstrings
 - [ ] Follows AVM naming conventions and coding standards 
