@@ -72,6 +72,7 @@ install_dependencies() {
         pip3 install langchain-core>=0.2.38 langsmith>=0.1.63
         pip3 install langchain-anthropic langchain-openai langchain-community
         pip3 install pydantic>=2.0.0 python-dotenv>=1.0.0 structlog>=24.1.0
+        pip install --upgrade "langgraph-cli[inmem]"
     fi
     
     # Install LangGraph CLI
